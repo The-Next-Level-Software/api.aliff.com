@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PROJECT_NAME • Server Status</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            font-family: 'Inter', system-ui, sans-serif;
+            background: linear-gradient(135deg, #001233, #0353a4, #0461ff);
+            background-size: 400% 400%;
+            color: #e9f0ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            overflow: hidden;
+            position: relative;
+            animation: bgAnimate 20s ease infinite;
+        }
+
+        /* Animated background gradient */
+        @keyframes bgAnimate {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        /* Animated background particles */
+        .particles {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(100, 200, 255, 0.5);
+            box-shadow: 0 0 15px rgba(100, 200, 255, 0.6);
+            animation: float linear infinite;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(100vh) translateX(0);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(-100px) translateX(50px);
+                opacity: 0;
+            }
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 60px 70px;
+            border-radius: 24px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(18px);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            max-width: 460px;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: cardAppear 1.2s ease-out forwards, floatCard 6s ease-in-out infinite alternate;
+        }
+
+        /* Floating card movement */
+        @keyframes floatCard {
+            0% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-6px);
+            }
+
+            100% {
+                transform: translateY(0px);
+            }
+        }
+
+        @keyframes cardAppear {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .status-ring {
+            width: 140px;
+            height: 140px;
+            border: 6px solid rgba(16, 185, 129, 0.25);
+            border-top: 6px solid #10b981;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation: spin 4s linear infinite, ringPulse 2s ease-in-out infinite alternate;
+            opacity: 0.5;
+        }
+
+        @keyframes spin {
+            to {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
+        }
+
+        @keyframes ringPulse {
+            from {
+                transform: translate(-50%, -50%) scale(1);
+            }
+
+            to {
+                transform: translate(-50%, -50%) scale(1.1);
+            }
+        }
+
+        .status-icon {
+            font-size: 6rem;
+            margin-bottom: 18px;
+            animation: iconPulse 2s ease-in-out infinite alternate, floatIcon 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes iconPulse {
+            from {
+                transform: scale(1);
+            }
+
+            to {
+                transform: scale(1.15);
+            }
+        }
+
+        @keyframes floatIcon {
+            0% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-4px);
+            }
+
+            100% {
+                transform: translateY(0);
+            }
+        }
+
+        /* Gradient animated title */
+        h1 {
+            font-size: 2.6rem;
+            margin: 0 0 14px;
+            font-weight: 800;
+            background: linear-gradient(90deg, #ffffff, #a5d8ff, #10b981, #ffffff);
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradientMove 4s ease infinite;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: gradientMove 6s ease infinite, titleAppear 1s ease-out forwards 0.3s;
+        }
+
+        @keyframes gradientMove {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        @keyframes titleAppear {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        p {
+            color: #c9d6ff;
+            font-size: 1.15rem;
+            margin: 10px 0;
+            opacity: 0;
+            animation: fadeUp 0.8s ease-out forwards;
+        }
+
+        p:nth-child(3) {
+            animation-delay: 0.6s;
+        }
+
+        p:nth-child(4) {
+            animation-delay: 0.8s;
+        }
+
+        @keyframes fadeUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .ok {
+            color: #10b981;
+            font-weight: 800;
+            font-size: 1.5rem;
+            margin-top: 18px;
+            letter-spacing: 1px;
+            text-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
+            animation: glow 2s infinite alternate, pulseText 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from {
+                text-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
+            }
+
+            to {
+                text-shadow: 0 0 30px rgba(16, 185, 129, 0.9);
+            }
+        }
+
+        @keyframes pulseText {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        footer {
+            margin-top: 36px;
+            font-size: 0.95rem;
+            color: #9fb7ff;
+            opacity: 0;
+            animation: fadeUp 0.8s ease-out 1s forwards;
+        }
+
+        footer a {
+            color: #c0dbff;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        footer a:hover {
+            color: #ffffff;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="particles" id="particles"></div>
+    <div class="status-ring"></div>
+
+    <div class="card">
+        <div class="status-icon">✅</div>
+        <h1>Server is Running Smoothly</h1>
+        <p>All systems are operational and performing well.</p>
+        <p class="ok">Status: Operational</p>
+        <footer>
+            <a href="https://www.thenextlevelsoftware.com" target="_blank">Next Level Software</a> © 2025
+        </footer>
+    </div>
+
+    <script>
+        // Create floating particles
+        const particlesContainer = document.getElementById('particles');
+        for (let i = 0; i < 40; i++) {
+            const p = document.createElement('div');
+            p.classList.add('particle');
+            const size = Math.random() * 6 + 2;
+            p.style.width = size + 'px';
+            p.style.height = size + 'px';
+            p.style.left = Math.random() * 100 + 'vw';
+            p.style.animationDelay = Math.random() * 15 + 's';
+            p.style.animationDuration = (Math.random() * 10 + 10) + 's';
+            p.style.opacity = Math.random() * 0.5 + 0.3;
+            particlesContainer.appendChild(p);
+        }
+    </script>
+</body>
+
+</html>

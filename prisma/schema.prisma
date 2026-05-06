@@ -1,0 +1,350 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String             @id @default(uuid())
+  email         String             @unique
+  passwordHash String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  socialAccounts  SocialAccount[]
+  chatSessions  ChatSession[]
+  closetItems   ClosetItem[]
+  outfitHistory OutfitHistory[]
+  profile       UserProfile?
+  quota         UserQuota?
+  subscriptions UserSubscription[]
+  waitlistEntry WaitlistEntry?
+}
+
+model SubscriptionTier {
+  id                  String             @id @default(uuid())
+  name                String             @unique
+  slug                String             @unique
+  weeklyOutfitLimit   Int?
+  lifetimeUploadLimit Int?
+  aiChatEnabled       Boolean            @default(true)
+  isActive            Boolean            @default(true)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  subscriptions       UserSubscription[]
+}
+
+model UserSubscription {
+  id                  String           @id @default(uuid())
+  userId              String
+  subscriptionTierId  String
+  name                String           @unique
+  slug                String           @unique
+  weeklyOutfitLimit   Int?
+  lifetimeUploadLimit Int?
+  aiChatEnabled       Boolean          @default(true)
+  status              String
+  startsAt            DateTime
+  expiresAt           DateTime?
+  createdAt           DateTime         @default(now())
+  userQuota           UserQuota?
+  subscriptionTier    SubscriptionTier @relation(fields: [subscriptionTierId], references: [id])
+  user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SocialAccount {
+  id           String       @id @default(uuid())
+  userId       String
+  provider     AuthProvider
+  providerId   String?
+  createdAt    DateTime     @default(now())
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+}
+
+model UserProfile {
+  id              String             @id @default(uuid())
+  userId          String             @unique
+  displayName     String
+  city            String?
+  country         String?
+  goals           StyleGoal[]
+  skinTone        String?
+  bodyShape       BodyShape?
+  heightRange     HeightRange?
+  coverageLevel   CoverageLevel?
+  modestyLevel    ModestyLevel?
+  fitPreference   FitPreference?
+  colorPreference ColorPreference?
+  priorities      StylePriority[]
+  photoRetention  PhotoRetentionPref @default(INDEFINITE)
+  avatarUrl       String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserQuota {
+  id                 String            @id @default(uuid())
+  userId             String            @unique
+  userSubscriptionId String?           @unique
+  totalUploads       Int               @default(0)
+  weeklyOutfitCount  Int               @default(0)
+  weeklyResetAt      DateTime          @default(now())
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userSubscription   UserSubscription? @relation(fields: [userSubscriptionId], references: [id])
+}
+
+model WaitlistEntry {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  email                String
+  name                 String
+  subscriptionTierName String
+  createdAt            DateTime @default(now())
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ClosetItem {
+  id                String           @id @default(uuid())
+  userId            String
+  originalImageUrl  String?
+  processedImageUrl String
+  imageKey          String
+  name              String?
+  category          ClothingCategory
+  primaryColor      String
+  secondaryColor    String?
+  pattern           String?
+  sleeveLength      SleeveLength?
+  neckline          NecklineType?
+  isOpaque          Boolean          @default(true)
+  hasLining         Boolean          @default(false)
+  fit               FitType?
+  occasion          Occasion[]
+  season            Season[]
+  isActive          Boolean          @default(true)
+  imageExpiresAt    DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  outfitItems       OutfitItem[]
+
+  @@index([userId])
+  @@index([userId, category])
+  @@index([userId, isActive])
+}
+
+model ChatSession {
+  id        String             @id @default(uuid())
+  userId    String
+  status    SessionStatus      @default(ACTIVE)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  expiresAt DateTime?
+  messages  ChatMessage[]
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  outfits   OutfitSuggestion[]
+
+  @@index([userId])
+  @@index([userId, status])
+}
+
+model ChatMessage {
+  id              String            @id @default(uuid())
+  sessionId       String
+  role            ChatRole
+  content         String
+  attachedItemIds String[]
+  outfitId        String?
+  createdAt       DateTime          @default(now())
+  outfit          OutfitSuggestion? @relation(fields: [outfitId], references: [id])
+  session         ChatSession       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model OutfitSuggestion {
+  id                    String         @id @default(uuid())
+  sessionId             String
+  aiExplanation         String?
+  occasionContext       String?
+  weatherSnapshot       Json?
+  passedModerationCheck Boolean        @default(false)
+  createdAt             DateTime       @default(now())
+  messages              ChatMessage[]
+  history               OutfitHistory?
+  outfitItems           OutfitItem[]
+  session               ChatSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model OutfitItem {
+  id           String           @id @default(uuid())
+  suggestionId String
+  closetItemId String
+  role         String
+  closetItem   ClosetItem       @relation(fields: [closetItemId], references: [id])
+  suggestion   OutfitSuggestion @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+}
+
+model OutfitHistory {
+  id                String           @id @default(uuid())
+  userId            String
+  suggestionId      String           @unique
+  action            FeedbackType
+  savedAt           DateTime         @default(now())
+  swappedItemId     String?
+  replacementItemId String?
+  suggestion        OutfitSuggestion @relation(fields: [suggestionId], references: [id])
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, action])
+  @@index([userId, savedAt])
+}
+
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+  APPLE
+}
+
+enum CoverageLevel {
+  HIJABI
+  NON_HIJABI
+}
+
+enum ModestyLevel {
+  FULL
+  MODERATE
+  RELAXED
+}
+
+enum BodyShape {
+  HOURGLASS
+  PEAR
+  APPLE
+  RECTANGLE
+  INVERTED_TRIANGLE
+  PREFER_NOT_TO_SAY
+}
+
+enum HeightRange {
+  PETITE
+  AVERAGE
+  TALL
+}
+
+enum FitPreference {
+  LOOSE
+  STRUCTURED
+  DEPENDS
+}
+
+enum ColorPreference {
+  BOLD_BRIGHT
+  PASTELS_NEUTRALS
+  DEPENDS
+}
+
+enum StyleGoal {
+  OUTFIT_IDEAS
+  CURATE_ELEGANT
+  FEEL_CONFIDENT
+  REFINE_STYLE
+}
+
+enum StylePriority {
+  MODEST_SILHOUETTES
+  REDUCE_BULK_LAYERING
+  FULL_OPACITY
+  ELONGATE_FRAME
+  NON_CLINGING_FIT
+}
+
+enum ClothingCategory {
+  TOPS
+  BOTTOMS
+  DRESSES
+  OUTERWEAR
+  HIJABS
+  FOOTWEAR
+  ACCESSORIES
+}
+
+enum SleeveLength {
+  SLEEVELESS
+  SHORT
+  ELBOW
+  THREE_QUARTER
+  FULL
+}
+
+enum NecklineType {
+  CREW
+  V_NECK
+  SCOOP
+  TURTLENECK
+  MOCK_NECK
+  COLLARED
+  SQUARE
+  OTHER
+}
+
+enum FitType {
+  OVERSIZED
+  LOOSE
+  REGULAR
+  FITTED
+  TAILORED
+}
+
+enum Occasion {
+  CASUAL
+  SMART_CASUAL
+  BUSINESS
+  FORMAL
+  EVENING
+  SPORT
+  HOME
+  TRAVEL
+}
+
+enum Season {
+  SPRING
+  SUMMER
+  AUTUMN
+  WINTER
+  ALL_SEASON
+}
+
+enum PhotoRetentionPref {
+  DAYS_30
+  DAYS_90
+  INDEFINITE
+}
+
+enum FeedbackType {
+  ACCEPTED
+  REJECTED
+  SWAPPED
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+}
+
+enum SessionStatus {
+  ACTIVE
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}

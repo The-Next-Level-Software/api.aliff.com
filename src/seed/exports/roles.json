@@ -1,0 +1,10 @@
+[
+  {
+    "name": "admin",
+    "permissions": ["create_user", "read_user", "update_user", "delete_user"]
+  },
+  {
+    "name": "user",
+    "permissions": ["read_user"]
+  }
+]

@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Khubaib Rasheed",
+    "email": "khubaib@thenextlevelsoftware.com",
+    "password": "pa$$w0rd",
+    "role": "user"
+  },
+  {
+    "name": "Abdullah Nadeem",
+    "email": "abdullah@thenextlevelsoftware.com",
+    "password": "pa$$w0rd",
+    "role": "user"
+  },
+  {
+    "name": "Fahad Ayub",
+    "email": "fahad@thenextlevelsoftware.com",
+    "password": "pa$$w0rd",
+    "role": "user"
+  },
+  {
+    "name": "Test User",
+    "email": "testuser@thenextlevelsoftware.com",
+    "password": "pa$$w0rd",
+    "role": "user"
+  }
+]
