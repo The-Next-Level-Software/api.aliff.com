@@ -10,6 +10,7 @@ import { PasswordUtils } from "../../utils/password.util.js";
 import { generateApiResponse, generateErrorApiResponse } from "../../utils/response.util.js";
 import AuthService from "../../services/auth.service.js";
 import logger from "../../config/logger.js";
+import supabase from "../../config/supabase.js";
 
 const googleClient = new OAuth2Client();
 
@@ -17,12 +18,21 @@ const googleClient = new OAuth2Client();
 const decodeSocialToken = async (provider, token) => {
   switch (provider) {
     case "GOOGLE": {
-      const ticket = await googleClient.verifyIdToken({
-        idToken: token,
-        audience: process.env.GOOGLE_CLIENT_ID,
+      // const ticket = await googleClient.verifyIdToken({
+      //   idToken: token,
+      //   audience: process.env.GOOGLE_CLIENT_ID,
+      // });
+      // const p = ticket.getPayload();
+      // return { socialId: p.sub, email: p.email };
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: "google",
+        token,
       });
-      const p = ticket.getPayload();
-      return { socialId: p.sub, email: p.email };
+      if (error) throw new Error(error.message);
+      return {
+        socialId: data.user.user_metadata.sub,
+        email: data.user.email,
+      };
     }
 
     case "APPLE": {
@@ -30,7 +40,7 @@ const decodeSocialToken = async (provider, token) => {
         audience: process.env.APPLE_CLIENT_ID,
         ignoreExpiration: false,
       });
-      return { socialId: p.sub, email: p.email };
+      return { socialId: p.sub, email: p.email ?? null };
     }
 
     case "FACEBOOK": {
@@ -59,7 +69,11 @@ class AuthController {
       const { email, password } = req.body;
 
       if (!email || !password)
-        return generateErrorApiResponse(res, StatusCodes.BAD_REQUEST, "Email and password are required");
+        return generateErrorApiResponse(
+          res,
+          StatusCodes.BAD_REQUEST,
+          "Email and password are required"
+        );
 
       const existing = await User.findUnique({ where: { email } });
       if (existing)
@@ -68,7 +82,21 @@ class AuthController {
       // Check OTP was verified for this email
       const otpRecord = await prisma.otp.findUnique({ where: { email } });
       if (!otpRecord || !otpRecord.isVerified)
-        return generateErrorApiResponse(res, StatusCodes.BAD_REQUEST, "Email OTP verification required before registration");
+        return generateErrorApiResponse(
+          res,
+          StatusCodes.BAD_REQUEST,
+          "Email OTP verification required before registration"
+        );
+      const { error: supabaseError } = await supabase.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true, // skip Supabase's own email confirmation since you already verified via OTP
+      });
+
+      if (supabaseError) {
+        logger.warn(`[MA][Auth][register] Supabase sync failed: ${supabaseError.message}`);
+        // non-fatal — user is already created in your DB, just log it
+      }
 
       const user = await User.create({
         data: { email, passwordHash: await PasswordUtils.hash(password) },
@@ -78,7 +106,10 @@ class AuthController {
       await prisma.otp.delete({ where: { email } });
 
       const tokens = AuthService.generateAuthTokens(user);
-      return generateApiResponse(res, StatusCodes.CREATED, "Registered successfully", { user, ...tokens });
+      return generateApiResponse(res, StatusCodes.CREATED, "Registered successfully", {
+        user,
+        ...tokens,
+      });
     } catch (err) {
       logger.error(`[MA][Auth][register] ${err.message}`);
       return generateErrorApiResponse(res, StatusCodes.INTERNAL_SERVER_ERROR, err.message);
@@ -117,7 +148,10 @@ class AuthController {
 
       const { socialAccounts: _, passwordHash: __, ...safeUser } = user;
       const tokens = AuthService.generateAuthTokens(safeUser);
-      return generateApiResponse(res, StatusCodes.OK, "Login successful", { user: safeUser, ...tokens });
+      return generateApiResponse(res, StatusCodes.OK, "Login successful", {
+        user: safeUser,
+        ...tokens,
+      });
     } catch (err) {
       logger.error(`[MA][Auth][login] ${err.message}`);
       return generateErrorApiResponse(res, StatusCodes.INTERNAL_SERVER_ERROR, err.message);
@@ -131,16 +165,28 @@ class AuthController {
       let isNewUser = false;
 
       if (!provider || !token)
-        return generateErrorApiResponse(res, StatusCodes.BAD_REQUEST, "provider and token are required");
+        return generateErrorApiResponse(
+          res,
+          StatusCodes.BAD_REQUEST,
+          "provider and token are required"
+        );
 
       const validProviders = ["GOOGLE", "APPLE", "FACEBOOK"];
       if (!validProviders.includes(provider))
-        return generateErrorApiResponse(res, StatusCodes.BAD_REQUEST, `provider must be one of: ${validProviders.join(", ")}`);
+        return generateErrorApiResponse(
+          res,
+          StatusCodes.BAD_REQUEST,
+          `provider must be one of: ${validProviders.join(", ")}`
+        );
 
       const { socialId, email } = await decodeSocialToken(provider, token);
 
       if (!email)
-        return generateErrorApiResponse(res, StatusCodes.BAD_REQUEST, "Could not retrieve email from social provider");
+        return generateErrorApiResponse(
+          res,
+          StatusCodes.BAD_REQUEST,
+          "Could not retrieve email from social provider"
+        );
 
       // SocialAccount @@unique([provider, providerId]) → compound key is provider_providerId
       const existingSocial = await SocialAccount.findUnique({
@@ -164,7 +210,9 @@ class AuthController {
         isNewUser = true;
         user = await prisma.$transaction(async (tx) => {
           const created = await tx.user.create({ data: { email }, select: userSelect });
-          await tx.socialAccount.create({ data: { provider, providerId: socialId, userId: created.id } });
+          await tx.socialAccount.create({
+            data: { provider, providerId: socialId, userId: created.id },
+          });
           return created;
         });
       } else {
@@ -172,9 +220,68 @@ class AuthController {
       }
 
       const tokens = AuthService.generateAuthTokens(user);
-      return generateApiResponse(res, StatusCodes.OK, "Social login successful", { user, ...tokens, isNewUser });
+      return generateApiResponse(res, StatusCodes.OK, "Social login successful", {
+        user,
+        ...tokens,
+        isNewUser,
+      });
     } catch (err) {
       logger.error(`[MA][Auth][socialLogin] ${err.message}`);
+      return generateErrorApiResponse(res, StatusCodes.INTERNAL_SERVER_ERROR, err.message);
+    }
+  }
+
+  // ── POST /auth/add-account ────────────────────────────────────────────────
+  static async addAccount(req, res) {
+    try {
+      const { provider, token } = req.body;
+      const userId = req.user.id;
+
+      if (!provider || !token)
+        return generateErrorApiResponse(
+          res,
+          StatusCodes.BAD_REQUEST,
+          "Provider and token are required"
+        );
+
+      const validProviders = ["GOOGLE", "APPLE"];
+      if (!validProviders.includes(provider))
+        return generateErrorApiResponse(
+          res,
+          StatusCodes.BAD_REQUEST,
+          `Provider must be one of: ${validProviders.join(", ")}`
+        );
+
+      // Decode the token using your existing function
+      const { socialId, email } = await decodeSocialToken(provider, token);
+
+      // Check if this social account is already linked to someone else
+      const existingSocial = await SocialAccount.findUnique({
+        where: { provider_providerId: { provider, providerId: socialId } },
+      });
+
+      if (existingSocial && existingSocial.userId !== userId)
+        return generateErrorApiResponse(
+          res,
+          StatusCodes.CONFLICT,
+          "This social account is already linked to another user"
+        );
+
+      if (existingSocial && existingSocial.userId === userId)
+        return generateErrorApiResponse(
+          res,
+          StatusCodes.CONFLICT,
+          "This social account is already linked to your account"
+        );
+
+      // Link it
+      await SocialAccount.create({
+        data: { userId, provider, providerId: socialId },
+      });
+
+      return generateApiResponse(res, StatusCodes.OK, "Account linked successfully");
+    } catch (err) {
+      logger.error(`[MA][Auth][addAccount] ${err.message}`);
       return generateErrorApiResponse(res, StatusCodes.INTERNAL_SERVER_ERROR, err.message);
     }
   }
@@ -201,7 +308,12 @@ class AuthController {
         return generateErrorApiResponse(res, StatusCodes.CONFLICT, "Email already registered");
 
       const data = await otpService.create(email);
-      return generateApiResponse(res, StatusCodes.OK, "OTP sent to your email for verification", data);
+      return generateApiResponse(
+        res,
+        StatusCodes.OK,
+        "OTP sent to your email for verification",
+        data
+      );
     } catch (err) {
       logger.error(`[MA][Auth][checkEmail] ${err.message}`);
       return generateErrorApiResponse(res, StatusCodes.INTERNAL_SERVER_ERROR, err.message);
@@ -216,7 +328,11 @@ class AuthController {
 
       // Always return same message to avoid email enumeration
       if (!user)
-        return generateApiResponse(res, StatusCodes.OK, "If this email exists, an OTP has been sent");
+        return generateApiResponse(
+          res,
+          StatusCodes.OK,
+          "If this email exists, an OTP has been sent"
+        );
 
       await otpService.create(email);
       return generateApiResponse(res, StatusCodes.OK, "OTP sent to your email");
@@ -254,7 +370,11 @@ class AuthController {
     try {
       const { email, newPassword } = req.body;
       if (!email || !newPassword)
-        return generateErrorApiResponse(res, StatusCodes.BAD_REQUEST, "Email and password are required");
+        return generateErrorApiResponse(
+          res,
+          StatusCodes.BAD_REQUEST,
+          "Email and password are required"
+        );
 
       const result = await otpService.consume(email);
       if (!result.success)
@@ -299,7 +419,11 @@ class AuthController {
         updateData.email = email;
       }
 
-      const user = await User.update({ where: { id: req.user.id }, data: updateData, select: userSelect });
+      const user = await User.update({
+        where: { id: req.user.id },
+        data: updateData,
+        select: userSelect,
+      });
       return generateApiResponse(res, StatusCodes.OK, "Profile updated", { user });
     } catch (err) {
       logger.error(`[MA][Auth][updateProfile] ${err.message}`);
@@ -314,15 +438,27 @@ class AuthController {
       const user = await User.findUnique({ where: { id: req.user.id } });
 
       if (!user.passwordHash)
-        return generateErrorApiResponse(res, StatusCodes.BAD_REQUEST, "Password change not available for social accounts");
+        return generateErrorApiResponse(
+          res,
+          StatusCodes.BAD_REQUEST,
+          "Password change not available for social accounts"
+        );
 
       const valid = await PasswordUtils.compare(currentPassword, user.passwordHash);
       if (!valid)
-        return generateErrorApiResponse(res, StatusCodes.UNAUTHORIZED, "Current password is incorrect");
+        return generateErrorApiResponse(
+          res,
+          StatusCodes.UNAUTHORIZED,
+          "Current password is incorrect"
+        );
 
       const isSame = await PasswordUtils.isSameAsOldPassword(newPassword, user.passwordHash);
       if (isSame)
-        return generateErrorApiResponse(res, StatusCodes.BAD_REQUEST, "New password must differ from current password");
+        return generateErrorApiResponse(
+          res,
+          StatusCodes.BAD_REQUEST,
+          "New password must differ from current password"
+        );
 
       await User.update({
         where: { id: req.user.id },
