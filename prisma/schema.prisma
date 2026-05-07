@@ -21,6 +21,21 @@ model User {
   quota         UserQuota?
   subscriptions UserSubscription[]
   waitlistEntry WaitlistEntry?
+  //opt model relation
+  otps           Otp[]
+}
+
+model Otp {
+  id         String   @id @default(uuid())
+  email      String   @unique
+  otp        String
+  attempts   Int      @default(0)
+  expiresAt  DateTime
+  isVerified Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model SubscriptionTier {

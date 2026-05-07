@@ -9,9 +9,16 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const ENV = process.env.NODE_ENV || "dev";
-const envFile = `.env.${ENV}`;
 
-dotenv.config({ path: path.resolve(__dirname, `../../${envFile}`) });
+dotenv.config({
+  path: path.resolve(__dirname, `../../.env.${ENV}`),
+  override: false,
+});
+// Fallback to .env if .env.{ENV} doesn't exist or is missing vars
+dotenv.config({
+  path: path.resolve(__dirname, `../../.env`),
+  override: false,
+});
 
 // -----------------------------------------------------------------------------
 // ⚙️ Config object

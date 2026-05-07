@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OTP Verification</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f4f6f8;
+      font-family: Arial, sans-serif;
+    }
+    .container {
+      max-width: 500px;
+      margin: 40px auto;
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 30px;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .logo {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 20px;
+    }
+    .otp {
+      font-size: 32px;
+      letter-spacing: 6px;
+      font-weight: bold;
+      color: #2c3e50;
+      margin: 20px 0;
+    }
+    .message {
+      font-size: 14px;
+      color: #555;
+      margin-bottom: 20px;
+    }
+    .footer {
+      font-size: 12px;
+      color: #999;
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    
+    <div class="logo">
+      🔐 Aliff
+    </div>
+
+    <p class="message">
+      Use the following One-Time Password (OTP) to proceed:
+    </p>
+
+    <div class="otp">
+      {{otp}}
+    </div>
+
+    <p class="message">
+      This OTP is valid for a limited time. Do not share it with anyone.
+    </p>
+
+    <div class="footer">
+      © {{year}} Your App. All rights reserved.
+    </div>
+
+  </div>
+</body>
+</html>
