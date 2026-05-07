@@ -44,6 +44,7 @@
     },
     "dependencies": {
         "@prisma/client": "^6.2.0",
+        "@supabase/supabase-js": "^2.105.3",
         "apple-signin-auth": "^2.0.0",
         "archiver": "^7.0.1",
         "aws-sdk": "^2.1693.0",

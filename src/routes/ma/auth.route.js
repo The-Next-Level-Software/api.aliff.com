@@ -19,6 +19,7 @@ router.post("/reset-password", validate(["email", "newPassword"]), AuthControlle
 
 // Protected
 router.use(authMiddleware());
+router.post("/add-account", validate(["provider", "token"]), AuthController.addAccount);
 router.get("/me", AuthController.getMe);
 router.patch("/update-profile", AuthController.updateProfile);
 router.patch("/change-password", validate(["currentPassword", "newPassword"]), AuthController.changePassword);
