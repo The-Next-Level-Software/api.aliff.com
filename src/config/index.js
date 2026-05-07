@@ -90,6 +90,13 @@ const appConfig = {
   AWS_BUCKET: process.env.AWS_BUCKET,
   FILE_STORAGE: process.env.FILE_STORAGE || "local",
 
+  // CLOUDFLARE R2
+  CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID,
+  CLOUDFLARE_ACCESS_KEY: process.env.CLOUDFLARE_ACCESS_KEY,
+  CLOUDFLARE_SECRET_KEY: process.env.CLOUDFLARE_SECRET_KEY,
+  CLOUDFLARE_BUCKET: process.env.CLOUDFLARE_BUCKET,
+  CLOUDFLARE_PUBLIC_URL: process.env.CLOUDFLARE_PUBLIC_URL,
+
   pagination: {
     defaultPage: 1,
     defaultLimit: 10,
