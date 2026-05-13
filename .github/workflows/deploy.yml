@@ -20,12 +20,12 @@ jobs:
                     echo "IMAGE_NAME=aliff-api-live" >> $GITHUB_ENV
                     echo "CONTAINER_NAME=aliff-api-live" >> $GITHUB_ENV
                     echo "ENV_FILE=/var/www/api/live/.env" >> $GITHUB_ENV
-                    echo "PORT=5000" >> $GITHUB_ENV
+                    echo "PORT=3000" >> $GITHUB_ENV
                   else
                     echo "IMAGE_NAME=aliff-api-test" >> $GITHUB_ENV
                     echo "CONTAINER_NAME=aliff-api-test" >> $GITHUB_ENV
                     echo "ENV_FILE=/var/www/api/test/.env" >> $GITHUB_ENV
-                    echo "PORT=5001" >> $GITHUB_ENV
+                    echo "PORT=3001" >> $GITHUB_ENV
                   fi
 
             - name: Build Docker image
@@ -42,14 +42,15 @@ jobs:
                   docker run -d \
                     --name $CONTAINER_NAME \
                     --env-file $ENV_FILE \
-                    -p 127.0.0.1:$PORT:5000 \
+                    -p 127.0.0.1:$PORT:3000 \
                     --restart unless-stopped \
                     $IMAGE_NAME:latest
 
-            - name: Verify container
+            - name: Health check
               run: |
-                  docker ps | grep $CONTAINER_NAME
+                  sleep 10
+                  curl -f http://127.0.0.1:$PORT/health
 
-            - name: Cleanup unused Docker images
+            - name: Cleanup old images
               run: |
                   docker image prune -af
