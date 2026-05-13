@@ -97,6 +97,10 @@ const appConfig = {
   CLOUDFLARE_BUCKET: process.env.CLOUDFLARE_BUCKET,
   CLOUDFLARE_PUBLIC_URL: process.env.CLOUDFLARE_PUBLIC_URL,
 
+  // AI & IMAGE PROCESSING
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+  PHOTOROOM_API_KEY: process.env.PHOTOROOM_API_KEY,
+
   pagination: {
     defaultPage: 1,
     defaultLimit: 10,
