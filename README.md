@@ -4,6 +4,7 @@ Node.js + Express + Prisma + PostgreSQL API with Swagger, Tests, and CI/CD ready
 
 ## 🚀 Features
 
+
 - **Express.js** - Fast, unopinionated web framework
 - **Prisma ORM** - Modern database toolkit for PostgreSQL
 - **PostgreSQL** - Powerful, open-source relational database
