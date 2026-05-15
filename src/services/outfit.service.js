@@ -6,6 +6,7 @@ import appConfig from "../config/index.js";
 import logger from "../config/logger.js";
 import { getWeatherSnapshot } from "./weather.service.js";
 import { buildOutfitSystemPrompt } from "../prompts/outfit.prompt.js";
+import { PaginationService } from "./pagination.service.js";
 
 const genai = new GoogleGenAI({ apiKey: appConfig.GEMINI_API_KEY });
 
@@ -482,6 +483,45 @@ class OutfitService {
         items: formatItemsForResponse(hydratedItems),
         createdAt: newSuggestion.createdAt,
       },
+    };
+  }
+  // getOutfitHistory service with pagination and search api
+  static async getOutfitHistory(userId, query) {
+    const { page, limit, search } = query;
+    const { skip, limit: take, page: currentPage } = PaginationService.getPagination(page, limit);
+
+    // OutfitSuggestion has aiExplanation (not outfitName) and occasionContext for search
+    const where = {
+      userId,
+      action: "ACCEPTED",
+      ...(search ? {
+        OR: [
+          { suggestion: { aiExplanation: { contains: search, mode: "insensitive" } } },
+          { suggestion: { occasionContext: { contains: search, mode: "insensitive" } } },
+        ],
+      } : {}),
+    };
+
+    const [outfitHistory, total] = await Promise.all([
+      prisma.outfitHistory.findMany({
+        where,
+        include: {
+          suggestion: {
+            include: {
+              outfitItems: { include: { closetItem: true } },
+            },
+          },
+        },
+        orderBy: { savedAt: "desc" },
+        skip,
+        take,
+      }),
+      prisma.outfitHistory.count({ where }),
+    ]);
+
+    return {
+      data: outfitHistory,
+      meta: PaginationService.getMeta(total, currentPage, take),
     };
   }
 }

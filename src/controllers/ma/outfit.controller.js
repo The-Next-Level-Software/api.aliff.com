@@ -64,6 +64,27 @@ class OutfitController {
       data:       result.feedback,
     });
   }
+  // get app outfit history with pagination and search api
+  /**
+   * GET /api/outfit/history
+   * Body: { page, limit, search }
+   */
+  static async getOutfitHistory(req, res) {
+    const userId = req.user.id;
+    const { page, limit, search } = req.query;
+
+    const result = await OutfitService.getOutfitHistory(userId, { page, limit, search });
+
+    if (result.error)
+      return res.status(400).json({ statusCode: 400, isSuccess: false, message: result.error });
+
+    return res.status(200).json({
+      statusCode: 200,
+      isSuccess:  true,
+      message:    "Outfit history fetched successfully",
+      data:       result,
+    });
+  }
 }
 
 export default OutfitController;

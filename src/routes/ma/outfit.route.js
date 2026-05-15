@@ -39,5 +39,6 @@ router.post("/style", OutfitController.generateOutfit);
  * On SWAPPED → saves to OutfitHistory, calls AI for swap, returns new OutfitSuggestion
  */
 router.post("/feedback", OutfitController.submitFeedback);
+router.get("/history", OutfitController.getOutfitHistory);
 
 export default router;
