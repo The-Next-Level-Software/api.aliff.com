@@ -6,6 +6,7 @@ import OnboardingService from "../../services/onboarding.service.js";
 import { UserProfile } from "../../startup/models.js";
 import { generateApiResponse, generateErrorApiResponse } from "../../utils/response.util.js";
 import logger from "../../config/logger.js";
+import AuthService from "../../services/auth.service.js";
 
 class OnboardingController {
   // ── POST /onboarding/complete ─────────────────────────────────────────────
@@ -16,9 +17,13 @@ class OnboardingController {
       if (!result.success) {
         return generateErrorApiResponse(res, result.status, result.message);
       }
+      const { socialAccounts: _, passwordHash: __, ...safeUser } = req.user;
+      safeUser.isBoarded = true;
+      const tokens = AuthService.generateAuthTokens(safeUser);
 
       return generateApiResponse(res, StatusCodes.CREATED, "Onboarding completed successfully", {
         profile: result.profile,
+        tokens
       });
     } catch (err) {
       logger.error(`[MA][Onboarding][completeOnboarding] ${err.message}`);
@@ -51,9 +56,13 @@ class OnboardingController {
       if (!result.success) {
         return generateErrorApiResponse(res, result.status, result.message);
       }
+      const { socialAccounts: _, passwordHash: __, ...safeUser } = req.user;
+      safeUser.isBoarded = true;
+      const tokens = AuthService.generateAuthTokens(safeUser);
 
       return generateApiResponse(res, StatusCodes.OK, "Preferences updated successfully", {
         profile: result.profile,
+        tokens
       });
     } catch (err) {
       logger.error(`[MA][Onboarding][updatePreferences] ${err.message}`);

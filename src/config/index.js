@@ -101,6 +101,8 @@ const appConfig = {
   GEMINI_API_KEY: process.env.GEMINI_API_KEY,
   PHOTOROOM_API_KEY: process.env.PHOTOROOM_API_KEY,
 
+  OPENWEATHER_API_KEY: process.env.OPENWEATHER_API_KEY,
+
   pagination: {
     defaultPage: 1,
     defaultLimit: 10,

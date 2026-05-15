@@ -73,6 +73,7 @@ Accept the image if it shows ANY of the following:
 - The item may be photographed from any angle
 
 Reject ONLY if:
+- The image contains a person in the image
 - The image contains no clothing or fashion accessory at all
 - The image is completely unclear or unrecognizable
 - The image shows a person's full body/face as the main subject (not the clothing)

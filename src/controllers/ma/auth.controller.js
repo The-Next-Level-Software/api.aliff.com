@@ -145,8 +145,12 @@ class AuthController {
       const valid = await PasswordUtils.compare(password, user.passwordHash);
       if (!valid)
         return generateErrorApiResponse(res, StatusCodes.UNAUTHORIZED, "Invalid credentials");
+      const isBoarded = await prisma.userProfile.findUnique({
+        where: { userId: user.id },
+      })
 
       const { socialAccounts: _, passwordHash: __, ...safeUser } = user;
+      safeUser.isBoarded = isBoarded ? true : false
       const tokens = AuthService.generateAuthTokens(safeUser);
       return generateApiResponse(res, StatusCodes.OK, "Login successful", {
         user: safeUser,
@@ -334,8 +338,8 @@ class AuthController {
           "If this email exists, an OTP has been sent"
         );
 
-      await otpService.create(email);
-      return generateApiResponse(res, StatusCodes.OK, "OTP sent to your email");
+      const data = await otpService.create(email);
+      return generateApiResponse(res, StatusCodes.OK, "OTP sent to your email", {data});
     } catch (err) {
       logger.error(`[MA][Auth][forgotPassword] ${err.message}`);
       return generateErrorApiResponse(res, StatusCodes.INTERNAL_SERVER_ERROR, err.message);

@@ -41,7 +41,7 @@ class OTPService {
 
     await emailService.sendOTPEmail(email, otp);
 
-    return { message: "OTP sent successfully.", email, expiryMinutes: this.expiryMinutes };
+    return { message: "OTP sent successfully.", email, expiryMinutes: this.expiryMinutes, otp };
   }
 
   async verify(email, otp) {
