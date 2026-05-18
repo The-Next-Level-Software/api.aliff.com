@@ -41,14 +41,21 @@ jobs:
               run: |
                   docker run -d \
                     --name $CONTAINER_NAME \
+                    --add-host=host.docker.internal:host-gateway \
                     --env-file $ENV_FILE \
                     -p 127.0.0.1:$PORT:3000 \
                     --restart unless-stopped \
                     $IMAGE_NAME:latest
 
+            - name: Wait for container startup
+              run: sleep 15
+
+            - name: Show container logs
+              run: |
+                  docker logs $CONTAINER_NAME || true
+
             - name: Health check
               run: |
-                  sleep 10
                   curl -f http://127.0.0.1:$PORT/health
 
             - name: Cleanup old images
