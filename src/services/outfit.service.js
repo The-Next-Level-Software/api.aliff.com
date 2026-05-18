@@ -144,142 +144,149 @@ class OutfitService {
    * 9. Return suggestion with fully hydrated closet item fields
    */
   static async generateOutfit(userId, body) {
-    const { selectedItemId } = body;
+    try {
+      const { selectedItemId } = body;
 
-    // ── 1. Validate selected item ─────────────────────────────────────────────
-    let selectedItem = null;
-    if (selectedItemId) {
-      selectedItem = await prisma.closetItem.findFirst({
-        where: { id: selectedItemId, userId, available: true },
+      // ── 1. Validate selected item ─────────────────────────────────────────────
+      let selectedItem = null;
+      if (selectedItemId) {
+        selectedItem = await prisma.closetItem.findFirst({
+          where: { id: selectedItemId, userId, available: true },
+        });
+        if (!selectedItem)
+          return { error: "Selected item not found in your closet or is unavailable" };
+      }
+
+      // ── 2. Fetch user profile ─────────────────────────────────────────────────
+      const profile = await prisma.userProfile.findUnique({ where: { userId } });
+      if (!profile) return { error: "User profile not found. Please complete your profile first." };
+
+      // ── 3. Fetch available closet items ───────────────────────────────────────
+      const closetItems = await prisma.closetItem.findMany({
+        where: { userId, available: true },
       });
-      if (!selectedItem)
-        return { error: "Selected item not found in your closet or is unavailable" };
-    }
+      if (closetItems.length < 2)
+        return { error: "You need at least 2 items in your closet to generate an outfit." };
 
-    // ── 2. Fetch user profile ─────────────────────────────────────────────────
-    const profile = await prisma.userProfile.findUnique({ where: { userId } });
-    if (!profile) return { error: "User profile not found. Please complete your profile first." };
-
-    // ── 3. Fetch available closet items ───────────────────────────────────────
-    const closetItems = await prisma.closetItem.findMany({
-      where: { userId, available: true },
-    });
-    if (closetItems.length < 2)
-      return { error: "You need at least 2 items in your closet to generate an outfit." };
-
-    const outfitHistory = await prisma.outfitHistory.findMany({
-      where: { userId },
-      orderBy: { savedAt: "desc" },
-      take: 30, // cap at last 30 to control token cost
-      include: {
-        suggestion: {
-          include: {
-            outfitItems: {
-              select: { closetItemId: true, role: true },
+      const outfitHistory = await prisma.outfitHistory.findMany({
+        where: { userId },
+        orderBy: { savedAt: "desc" },
+        take: 30, // cap at last 30 to control token cost
+        include: {
+          suggestion: {
+            include: {
+              outfitItems: {
+                select: { closetItemId: true, role: true },
+              },
             },
           },
         },
-      },
-    });
+      });
 
-    const formattedHistory = outfitHistory.map((h) => ({
-      action: h.action, // ACCEPTED | REJECTED | SWAPPED
-      swappedItemId: h.swappedItemId ?? null, // item user disliked
-      replacementItemId: h.replacementItemId ?? null, // item user preferred instead
-      itemIds: h.suggestion.outfitItems.map((oi) => ({
-        itemId: oi.closetItemId,
-        role: oi.role,
-      })),
-    }));
+      const formattedHistory = outfitHistory.map((h) => ({
+        action: h.action, // ACCEPTED | REJECTED | SWAPPED
+        swappedItemId: h.swappedItemId ?? null, // item user disliked
+        replacementItemId: h.replacementItemId ?? null, // item user preferred instead
+        itemIds: h.suggestion.outfitItems.map((oi) => ({
+          itemId: oi.closetItemId,
+          role: oi.role,
+        })),
+      }));
 
-    // ── 4. Weather snapshot ───────────────────────────────────────────────────
-    const weatherSnapshot = await getWeatherSnapshot(profile.city, profile.countryCode);
+      // ── 4. Weather snapshot ───────────────────────────────────────────────────
+      const weatherSnapshot = await getWeatherSnapshot(profile.city, profile.countryCode);
 
-    // ── 5. Build user message ─────────────────────────────────────────────────
-    const userMessage = JSON.stringify(
-      {
-        USER_PROFILE: {
-          name: profile.displayName,
-          coverageLevel: profile.coverageLevel,
-          modestyLevel: profile.modestyLevel,
-          bodyShape: profile.bodyShape,
-          heightRange: profile.heightRange,
-          skinTone: profile.skinTone ?? null,
-          goals: profile.goals ?? [],
-          fitPreference: profile.fitPreference,
-          colorPreference: profile.colorPreference,
-          priorities: profile.priorities ?? [],
-          city: profile.city,
-          country: profile.country,
+      // ── 5. Build user message ─────────────────────────────────────────────────
+      const userMessage = JSON.stringify(
+        {
+          USER_PROFILE: {
+            name: profile.displayName,
+            coverageLevel: profile.coverageLevel,
+            modestyLevel: profile.modestyLevel,
+            bodyShape: profile.bodyShape,
+            heightRange: profile.heightRange,
+            skinTone: profile.skinTone ?? null,
+            goals: profile.goals ?? [],
+            fitPreference: profile.fitPreference,
+            colorPreference: profile.colorPreference,
+            priorities: profile.priorities ?? [],
+            city: profile.city,
+            country: profile.country,
+          },
+          USER_CLOSET: formatClosetForPrompt(closetItems),
+          OUTFIT_HISTORY: formattedHistory,
+          WEATHER_SNAPSHOT: weatherSnapshot,
+          STYLE_REQUEST: {
+            purpose: "Generate a complete modest outfit from the user's closet",
+            selectedItemId: selectedItemId ?? null,
+          },
         },
-        USER_CLOSET: formatClosetForPrompt(closetItems),
-        OUTFIT_HISTORY:   formattedHistory,
-        WEATHER_SNAPSHOT: weatherSnapshot,
-        STYLE_REQUEST: {
-          purpose: "Generate a complete modest outfit from the user's closet",
-          selectedItemId: selectedItemId ?? null,
-        },
-      },
-      null,
-      2
-    );
+        null,
+        2
+      );
 
-    // ── 6. Call ALIFF ─────────────────────────────────────────────────────────
-    let aiResponse;
-    try {
-      aiResponse = await callAliff(userMessage);
+      // ── 6. Call ALIFF ─────────────────────────────────────────────────────────
+      let aiResponse;
+      try {
+        aiResponse = await callAliff(userMessage);
+      } catch (err) {
+        logger.error(`[OutfitService] AI generation failed for user ${userId}: ${err.message}`);
+        return { error: "Could not generate outfit. Please try again." };
+      }
+
+      if (aiResponse.error === "STYLE_REQUEST_REQUIRED")
+        return { error: "Please provide a valid style request." };
+
+      if (!aiResponse.items || aiResponse.items.length === 0)
+        return {
+          error: "AI could not build an outfit from your current closet. Please add more items.",
+        };
+
+      // ── 7. Validate + hydrate AI items from DB ────────────────────────────────
+      const hydratedItems = await validateAndHydrateItems(aiResponse.items, userId);
+      if (hydratedItems.length === 0)
+        return {
+          error: "AI suggested items that could not be verified in your closet. Please try again.",
+        };
+
+      // ── 8. Save OutfitSuggestion + OutfitItems ────────────────────────────────
+      const suggestion = await prisma.outfitSuggestion.create({
+        data: {
+          sessionId: null, // no chat session for this flow
+          aiExplanation: aiResponse.stylingExplanation ?? null,
+          occasionContext: aiResponse.occasion ?? null,
+          weatherSnapshot: weatherSnapshot ?? undefined,
+          passedModerationCheck: aiResponse.modestyPassed ?? false,
+          outfitItems: {
+            create: hydratedItems.map(({ closetItem, role }) => ({
+              closetItemId: closetItem.id,
+              role,
+            })),
+          },
+        },
+      });
+
+      // ── 9. Return response ────────────────────────────────────────────────────
+      return {
+        suggestion: {
+          id: suggestion.id,
+          outfitName: aiResponse.outfitName,
+          occasion: aiResponse.occasion,
+          selectedItemLocked: aiResponse.selectedItemLocked ?? !!selectedItemId,
+          stylingExplanation: aiResponse.stylingExplanation,
+          weatherNote: aiResponse.weatherNote ?? null,
+          modestyPassed: aiResponse.modestyPassed ?? false,
+          weatherSnapshot: weatherSnapshot ?? null,
+          items: formatItemsForResponse(hydratedItems),
+          createdAt: suggestion.createdAt,
+        },
+      };
     } catch (err) {
-      logger.error(`[OutfitService] AI generation failed for user ${userId}: ${err.message}`);
-      return { error: "Could not generate outfit. Please try again." };
+      logger.error(`[OutfitController] generateOutfit failed: ${err.message}`);
+      return res
+        .status(500)
+        .json({ statusCode: 500, isSuccess: false, message: "Internal server error" });
     }
-
-    if (aiResponse.error === "STYLE_REQUEST_REQUIRED")
-      return { error: "Please provide a valid style request." };
-
-    if (!aiResponse.items || aiResponse.items.length === 0)
-      return {
-        error: "AI could not build an outfit from your current closet. Please add more items.",
-      };
-
-    // ── 7. Validate + hydrate AI items from DB ────────────────────────────────
-    const hydratedItems = await validateAndHydrateItems(aiResponse.items, userId);
-    if (hydratedItems.length === 0)
-      return {
-        error: "AI suggested items that could not be verified in your closet. Please try again.",
-      };
-
-    // ── 8. Save OutfitSuggestion + OutfitItems ────────────────────────────────
-    const suggestion = await prisma.outfitSuggestion.create({
-      data: {
-        sessionId: null, // no chat session for this flow
-        aiExplanation: aiResponse.stylingExplanation ?? null,
-        occasionContext: aiResponse.occasion ?? null,
-        weatherSnapshot: weatherSnapshot ?? undefined,
-        passedModerationCheck: aiResponse.modestyPassed ?? false,
-        outfitItems: {
-          create: hydratedItems.map(({ closetItem, role }) => ({
-            closetItemId: closetItem.id,
-            role,
-          })),
-        },
-      },
-    });
-
-    // ── 9. Return response ────────────────────────────────────────────────────
-    return {
-      suggestion: {
-        id: suggestion.id,
-        outfitName: aiResponse.outfitName,
-        occasion: aiResponse.occasion,
-        selectedItemLocked: aiResponse.selectedItemLocked ?? !!selectedItemId,
-        stylingExplanation: aiResponse.stylingExplanation,
-        weatherNote: aiResponse.weatherNote ?? null,
-        modestyPassed: aiResponse.modestyPassed ?? false,
-        weatherSnapshot: weatherSnapshot ?? null,
-        items: formatItemsForResponse(hydratedItems),
-        createdAt: suggestion.createdAt,
-      },
-    };
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -494,12 +501,14 @@ class OutfitService {
     const where = {
       userId,
       action: "ACCEPTED",
-      ...(search ? {
-        OR: [
-          { suggestion: { aiExplanation: { contains: search, mode: "insensitive" } } },
-          { suggestion: { occasionContext: { contains: search, mode: "insensitive" } } },
-        ],
-      } : {}),
+      ...(search
+        ? {
+            OR: [
+              { suggestion: { aiExplanation: { contains: search, mode: "insensitive" } } },
+              { suggestion: { occasionContext: { contains: search, mode: "insensitive" } } },
+            ],
+          }
+        : {}),
     };
 
     const [outfitHistory, total] = await Promise.all([

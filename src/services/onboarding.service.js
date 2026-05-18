@@ -14,6 +14,17 @@ const VALID_PRIORITIES       = ["MODEST_SILHOUETTES", "REDUCE_BULK_LAYERING", "F
 const VALID_PHOTO_RETENTIONS = ["DAYS_30", "DAYS_90", "INDEFINITE"];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+const computeExpiresAt = (photoRetention) => {
+  const now = Date.now();
+  switch (photoRetention) {
+    case "DAYS_30":    return new Date(now + 30 * 24 * 60 * 60 * 1000);
+    case "DAYS_90":    return new Date(now + 90 * 24 * 60 * 60 * 1000);
+    case "INDEFINITE":
+    default:           return null;
+  }
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 const isValidEnumArray = (values, validSet) =>
   Array.isArray(values) && values.every((v) => validSet.includes(v));
 
@@ -154,6 +165,15 @@ class OnboardingService {
       where: { userId },
       data,
     });
+
+    // ── Sync imageExpiresAt on all closet items if photoRetention changed ─────────
+    if (data.photoRetention && data.photoRetention !== existing.photoRetention) {
+      const imageExpiresAt = computeExpiresAt(data.photoRetention);
+      await prisma.closetItem.updateMany({
+        where: { userId },
+        data: { imageExpiresAt },
+      });
+    }
 
     return { success: true, profile };
   }
