@@ -47,6 +47,13 @@ jobs:
                     --restart unless-stopped \
                     $IMAGE_NAME:latest
 
+            - name: Wait for container startup
+              run: sleep 15
+
+            - name: Show container logs
+              run: |
+                  docker logs $CONTAINER_NAME || true
+
 
             - name: Cleanup old images
               run: |
