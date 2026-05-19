@@ -1,0 +1,60 @@
+name: Backend Docker Deploy
+
+on:
+    push:
+        branches:
+            - CI/CD-Test
+            - CI/CD-Live
+
+jobs:
+    deploy:
+        runs-on: [self-hosted, aliff-api]
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Set deployment variables
+              run: |
+                  if [ "${GITHUB_REF_NAME}" = "CI/CD-Live" ]; then
+                    echo "IMAGE_NAME=aliff-api-live" >> $GITHUB_ENV
+                    echo "CONTAINER_NAME=aliff-api-live" >> $GITHUB_ENV
+                    echo "ENV_FILE=/var/www/api/live/.env" >> $GITHUB_ENV
+                    echo "PORT=3000" >> $GITHUB_ENV
+                  else
+                    echo "IMAGE_NAME=aliff-api-test" >> $GITHUB_ENV
+                    echo "CONTAINER_NAME=aliff-api-test" >> $GITHUB_ENV
+                    echo "ENV_FILE=/var/www/api/test/.env" >> $GITHUB_ENV
+                    echo "PORT=3001" >> $GITHUB_ENV
+                  fi
+
+            - name: Build Docker image
+              run: |
+                  docker build -t $IMAGE_NAME:latest .
+
+            - name: Stop old container
+              run: |
+                  docker stop $CONTAINER_NAME || true
+                  docker rm $CONTAINER_NAME || true
+
+            - name: Run new container
+              run: |
+                  docker run -d \
+                    --name $CONTAINER_NAME \
+                    --network aliff-network \
+                    --env-file $ENV_FILE \
+                    -p 127.0.0.1:$PORT:3000 \
+                    --restart unless-stopped \
+                    $IMAGE_NAME:latest
+
+            - name: Wait for container startup
+              run: sleep 15
+
+            - name: Show container logs
+              run: |
+                  docker logs $CONTAINER_NAME || true
+
+
+            - name: Cleanup old images
+              run: |
+                  docker image prune -af
