@@ -1,59 +1,31 @@
-import appConfig from "../config/index.js";
-import prisma from "../config/prisma.js";
 import { JwtUtils } from "../utils/jwt.util.js";
-import { PasswordUtils } from "../utils/password.util.js";
+import { generateErrorApiResponse } from "../utils/response.util.js";
+import { StatusCodes } from "http-status-codes";
 
 class AuthService {
   static getUserPayload(user) {
     return {
       id: user.id,
-      name: user.name,
       email: user.email,
-      username: user.username,
-      role: user.role,
-      isActive: user.isActive,
     };
   }
 
-  static async comparePassword(plain, hashed) {
-    return PasswordUtils.compare(plain, hashed);
-  }
-
-  static async generateAuthTokens(user, req) {
+  static generateAuthTokens(user) {
     const payload = this.getUserPayload(user);
     const { accessToken, refreshToken } = JwtUtils.generateTokenPair(payload);
-
-    await prisma.session.create({
-      data: {
-        userId: user.id,
-        refreshToken,
-        ip: req?.ip || null,
-        userAgent: req?.headers?.["user-agent"] || null,
-      },
-    });
-
     return { accessToken, refreshToken };
   }
 
-  static async refreshToken(refreshToken) {
-    const session = await prisma.session.findFirst({
-      where: { refreshToken, isActive: true },
-      include: { user: { include: { role: true } } },
-    });
+  static refreshAccessToken(refreshToken, res) {
+    if (!refreshToken)
+      return generateErrorApiResponse(res, StatusCodes.UNAUTHORIZED, "Refresh token is required");
 
-    if (!session) throw new Error("Invalid or expired refresh token");
+    const decoded = JwtUtils.safeVerify(refreshToken);
+    if (!decoded)
+      return generateErrorApiResponse(res, StatusCodes.UNAUTHORIZED, "Invalid or expired refresh token");
 
-    const newAccessToken = JwtUtils.refreshAccessToken(refreshToken, appConfig.jwt.accessExpires);
-
-    return { accessToken: newAccessToken, refreshToken };
-  }
-
-  static async logout(refreshToken) {
-    await prisma.session.deleteMany({ where: { refreshToken } });
-  }
-
-  static async logoutAll(userId) {
-    await prisma.session.deleteMany({ where: { userId } });
+    const accessToken = JwtUtils.refreshAccessToken(refreshToken);
+    return { accessToken };
   }
 }
 

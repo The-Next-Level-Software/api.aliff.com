@@ -7,7 +7,7 @@ import { WHITELIST } from "./config/whitelist.js";
 import authMiddleware from "./middlewares/auth.middleware.js";
 import errorMiddleware from "./middlewares/error.middleware.js";
 import maRoutes from "./routes/ma/index.js";
-import apRoutes from "./routes/ap/index.js";
+// import apRoutes from "./routes/ap/index.js";
 import path from "path";
 import { rateLimiter } from "./middlewares/rate-limiter.middleware.js";
 import { abuseFilterMiddleware } from "./middlewares/abusive-words.middleware.js";
@@ -35,7 +35,7 @@ app.use("/api", helmet());
 // -----------------------------
 // Use overall whitelist from config
 app.use("/api/ma", authMiddleware(WHITELIST.overall), maRoutes);
-app.use("/api/ap", authMiddleware(WHITELIST.overall), apRoutes);
+// app.use("/api/ap", authMiddleware(WHITELIST.overall), apRoutes);
 
 // -----------------------------
 // Rate Limiter (optional, can be applied to specific routes)

@@ -21,6 +21,21 @@ model User {
   quota         UserQuota?
   subscriptions UserSubscription[]
   waitlistEntry WaitlistEntry?
+  //opt model relation
+  otps           Otp[]
+}
+
+model Otp {
+  id         String   @id @default(uuid())
+  email      String   @unique
+  otp        String
+  attempts   Int      @default(0)
+  expiresAt  DateTime
+  isVerified Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model SubscriptionTier {
@@ -120,6 +135,9 @@ model ClosetItem {
   category          ClothingCategory
   primaryColor      String
   secondaryColor    String?
+  colors            String[]         @default([]) // For easier querying of multi-color items
+  hemLength         String?
+  fabric            String?
   pattern           String?
   sleeveLength      SleeveLength?
   neckline          NecklineType?
@@ -128,7 +146,7 @@ model ClosetItem {
   fit               FitType?
   occasion          Occasion[]
   season            Season[]
-  isActive          Boolean          @default(true)
+  available          Boolean          @default(true)
   imageExpiresAt    DateTime?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
@@ -137,7 +155,7 @@ model ClosetItem {
 
   @@index([userId])
   @@index([userId, category])
-  @@index([userId, isActive])
+  @@index([userId, available])
 }
 
 model ChatSession {

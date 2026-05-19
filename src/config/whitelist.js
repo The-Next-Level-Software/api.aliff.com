@@ -2,12 +2,13 @@
 
 export const WHITELIST = {
   overall: [
-    "/health",
+    "/auth/check-email",
     "/auth/register",
     "/auth/login",
     "/auth/logout",
     "/auth/refresh-token",
-    // "/auth/me",
+    "/auth/verify-otp",
+    "/auth/social",
   ],
 
   mobile: ["/mobile/login", "/mobile/register", "/mobile/forgot-password"],
