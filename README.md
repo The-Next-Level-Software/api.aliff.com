@@ -215,6 +215,12 @@ npm test                 # Run tests
 - `AWS_REGION` - AWS region (for S3)
 - `AWS_BUCKET` - S3 bucket name (for S3)
 
+### Supabase
+- `SUPABASE_URL` - Your Supabase project URL
+- `SUPABASE_KEY` - Supabase service role key for backend operations
+  - Prefer `service_role` key for server-side access
+  - If you use `anon` public key, ensure it has only public access
+
 ## 🔄 Migration from MongoDB to PostgreSQL
 
 This project was migrated from MongoDB/Mongoose to PostgreSQL/Prisma. Key changes:
