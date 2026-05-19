@@ -2,7 +2,7 @@
 
 export const WHITELIST = {
   overall: [
-    "/auth/check-email",
+    "/ma/auth/check-email",
     "/auth/register",
     "/auth/login",
     "/auth/logout",
