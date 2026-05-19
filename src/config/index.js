@@ -1,11 +1,12 @@
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 
 // -----------------------------------------------------------------------------
-// 🌍 Environment file loading
-// 🔗 Note: In Docker, env variables are injected via --env-file
-//    This will load from .env if present, but won't override Docker vars
+// 🌍 Dynamic environment file loading
 // -----------------------------------------------------------------------------
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const ENV = process.env.NODE_ENV || "dev";
 
