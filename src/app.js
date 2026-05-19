@@ -21,6 +21,7 @@ app.use(cors());
 app.use(express.json());
 
 // Health check (public)
+
 app.get("/health", getHealthPage);
 app.get("/health.json", getHealth);
 app.use("/file", express.static(path.join(process.cwd(), "public")));
